@@ -4,6 +4,9 @@
 #include<fstream>
 #include<string>
 #include<string.h>
+#include<random>  
+#include<time.h>
+
 
 using namespace std;
 
@@ -19,12 +22,18 @@ set<double> Classset_, Ageset_, Sexset_;
 vector<double> Classvector,Agevector, Sexvector;
 vector<double> Classvector_, Agevector_, Sexvector_;
 
+vector<double> Classtest, Agetest, Sextest, Survivetest;		//测试集
+
 vector<double>::iterator it2,it1;				//迭代器
 set<double>::iterator it0;
 
 
 
 double Py_1, Py1;
+
+default_random_engine random(time(NULL));		//产生1-100的随机数
+uniform_int_distribution<int> dis(1, 100);
+
 
 int main()
 {
@@ -34,47 +43,57 @@ int main()
 	double Class, Age, Sex;		//属性值
 	double survive;				//待分类属性
 
-
 	cout << "正在分析概率..." << endl;
-
 	while (getline(datafile,line))		//数据读入
 	{
 		cout << line << endl;
 		if (line[0] == '@') continue;
 		sscanf(const_cast<char*>(line.c_str()), "%lf,%lf,%lf,%lf", &Class, &Age, &Sex, &survive);
 		
-		if(survive==1.0)
-		{ 
-			Classset.insert(Class);				//set
-			Ageset.insert(Age);
-			Sexset.insert(Sex);
-
-			Val_Class.insert(Class);			//multiset
-			Val_Age.insert(Age);
-			Val_Sex.insert(Sex);
-
-			Classvector.push_back(Class);			//vector
-			Agevector.push_back(Age);
-			Sexvector.push_back(Sex);
-			
-			num_1++;
-		}
-		else
+		if (dis(random) < 71)		//写入训练集
 		{
-			Classset_.insert(Class);				//set
-			Ageset_.insert(Age);
-			Sexset_.insert(Sex);
+			if (survive == 1.0)
+			{
+				Classset.insert(Class);				//set
+				Ageset.insert(Age);
+				Sexset.insert(Sex);
 
-			Val_Class_.insert(Class);			//multiset
-			Val_Age_.insert(Age);
-			Val_Sex_.insert(Sex);
+				Val_Class.insert(Class);			//multiset
+				Val_Age.insert(Age);
+				Val_Sex.insert(Sex);
 
-			Classvector_.push_back(Class);			//vector
-			Agevector_.push_back(Age);
-			Sexvector_.push_back(Sex);
+				Classvector.push_back(Class);			//vector
+				Agevector.push_back(Age);
+				Sexvector.push_back(Sex);
+
+				num_1++;
+			}
+			else
+			{
+				Classset_.insert(Class);				//set
+				Ageset_.insert(Age);
+				Sexset_.insert(Sex);
+
+				Val_Class_.insert(Class);			//multiset
+				Val_Age_.insert(Age);
+				Val_Sex_.insert(Sex);
+
+				Classvector_.push_back(Class);			//vector
+				Agevector_.push_back(Age);
+				Sexvector_.push_back(Sex);
+			}
+
+			all_num++;
+
 		}
-
-		all_num++;
+		else								//写入测试集
+		{
+			Classtest.push_back(Class);
+			Agetest.push_back(Age);
+			Sextest.push_back(Sex);
+			Survivetest.push_back(survive);
+		}
+		
 	}
 
 
@@ -84,6 +103,8 @@ int main()
 
 	cout << "P(y=1)=" << Py1 << endl;
 	cout << "P(y=-1)=" << Py_1 << endl;
+	cout << "训练集数据数目" << all_num << endl;
+	cout << "测试集数目" << Agetest.size() << endl;
 
 	//条件概率
 
@@ -144,63 +165,78 @@ int main()
 	}
 
 
-	cout << "请分别输入需要分析的Class、Age、Sex值" << endl;
-	cin >> Class;
-	cin >> Age;
-	cin >> Sex;
-	
+	cout << "读取测试集..." << endl;
+
 	double P11=1.0, P21=1.0, P31=1.0;
 	double P12 = 1.0, P22 = 1.0, P32 = 1.0;
-	
-	//survive=1
-
-	for (unsigned int i = 0; i < Class_set_vector.size(); i++)
+	double P1 = 1.0, P2 = 1.0;
+	int right = 0, wrong = 0;
+	double solution;
+	for (int i = 0; i < Agetest.size(); i++)
 	{
-		if (Class_set_vector[i] == Class)
-			P11 = P_Class[i];
+
+		Class = Classtest[i];
+		Age = Agetest[i];
+		Sex = Sextest[i];
+		solution = Survivetest[i];
+
+		//survive=1情况下的概率
+
+		for (unsigned int i = 0; i < Class_set_vector.size(); i++)
+		{
+			if (Class_set_vector[i] == Class)
+				P11 = P_Class[i];
+		}
+
+		for (unsigned int i = 0; i < Age_set_vector.size(); i++)
+		{
+			if (Age_set_vector[i] == Age)
+				P21 = P_Age[i];
+		}
+
+		for (unsigned int i = 0; i < Sex_set_vector.size(); i++)
+		{
+			if (Sex_set_vector[i] == Sex)
+				P31 = P_Sex[i];
+		}
+
+		//survive=-1情况下的概率
+		for (unsigned int i = 0; i < Class_set_vector_.size(); i++)
+		{
+			if (Class_set_vector_[i] == Class)
+				P12 = P_Class_[i];
+		}
+
+		for (unsigned int i = 0; i < Age_set_vector_.size(); i++)
+		{
+			if (Age_set_vector_[i] == Age)
+				P22 = P_Age_[i];
+		}
+
+		for (unsigned int i = 0; i < Sex_set_vector_.size(); i++)
+		{
+			if (Sex_set_vector_[i] == Sex)
+				P32 = P_Sex_[i];
+		}
+
+		P1 = P11*P21*P31;		// 1的概率
+		P2 = P12*P22*P32;		//-1的概率
+
+		if (P1 > P2&&Survivetest[i] == 1.0)
+		{
+			right++; continue;
+		}
+		if (P1 < P2&&Survivetest[i] == -1.0)
+		{
+			right++; continue;
+		}
+		wrong++;
 	}
-
-	for (unsigned int i = 0; i < Age_set_vector.size(); i++)
-	{
-		if (Age_set_vector[i] == Age)
-			P21 = P_Age[i];
-	}
-
-	for (unsigned int i = 0; i < Sex_set_vector.size(); i++)
-	{
-		if (Sex_set_vector[i] == Sex)
-			P31 = P_Sex[i];
-	}
-	//survive=-1
-	for (unsigned int i = 0; i < Class_set_vector_.size(); i++)
-	{
-		if (Class_set_vector_[i] == Class)
-			P12 = P_Class_[i];
-	}
-
-	for (unsigned int i = 0; i < Age_set_vector_.size(); i++)
-	{
-		if (Age_set_vector_[i] == Age)
-			P22 = P_Age_[i];
-	}
-
-	for (unsigned int i = 0; i < Sex_set_vector_.size(); i++)
-	{
-		if (Sex_set_vector_[i] == Sex)
-			P32 = P_Sex_[i];
-	}
+	cout << "正确 " << right << endl;
+	cout << "错误" << wrong << endl;
+	cout << "正确率" << right / (double)(right + wrong) << endl;
 
 
-	double P1=1.0, P2=1.0;
-
-	P1 = P11*P21*P31;
-	P2 = P12*P22*P32;
-	cout << "y=1的概率为" << P1 << endl;
-	cout << "y=-1的概率为" << P2 << endl;
-	if (P1 < P2)
-		cout << "y最大可能是-1"<<endl;
-	else
-		cout << "y最大可能是1" << endl;
 	system("pause");
 	return 0;
 }
